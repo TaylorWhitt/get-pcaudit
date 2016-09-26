@@ -5,27 +5,18 @@
   [Microsoft.ActiveDirectory.Management.ADComputer[]]$computer
 )
 
-PROCESS{
-$computerName = $computer.DNSHostName
-
-
-
+BEGIN {
 Import-Module .\get-lastloggedonuser.psm1
 Import-Module ActiveDirectory
+}
+
+PROCESS {
+$computerName = $computer.DNSHostName
 
 #reservations=Get-DhcpServerv4Reservation -ScopeId "192.2.163.0"
 
 Write-Verbose "Checking $computerName"
-$alive = $false
-$alive = [bool](Test-Connection -TimeToLive 1 -Count 1 -ErrorAction SilentlyContinue -computername $computerName
-)
-if($alive){
-Write-Verbose "Host is alive"
-}
-else{
-Write-Warning "Host not responding to ping"
-}
-if($alive){
+if(Test-Connection -TimeToLive 1 -Count 1 -ErrorAction SilentlyContinue -computername $computerName){
 
     #test to see if the hostname matches otherwise we might have stale dns entry
     if($computerName.split('.')[0].ToUpper() -eq ((Get-WmiObject -Class Win32_ComputerSystem -ComputerName $computerName).Name).toUpper()){
@@ -86,14 +77,7 @@ if($alive){
 
         $wmiProd = Get-WmiObject -Class Win32_product -ComputerName $computerName
         #$software = $wmiProd | Select-Object Name
-        
-    } #/if wmic name matches $_.DnsHostName
-else{
-    Write-host -ForegroundColor Red "WMIC Name does not match, possible bad dns entry"
-}
-}
-
-    $comp = @{
+            $comp = @{
     'Computer Name' = $_.DnsHostName
     'Serial Number' = $compSerialNumer
     'Last logged on user' = $lastLogonUser
@@ -111,5 +95,16 @@ else{
 $outComp = new-object -TypeName PSObject -Property $comp
 
 write-output $outComp
+        
+    } #/if wmic name matches $_.DnsHostName
+else{
+    Write-host -ForegroundColor Red "WMIC Name does not match, possible bad dns entry"
+}
+}
+else{
+    Write-Warning "$computerName not responding to pings"
+}
+
+
 }
 }
